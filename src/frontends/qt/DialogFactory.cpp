@@ -49,6 +49,7 @@
 #include "GuiPrintindex.h"
 #include "GuiPrintNomencl.h"
 #include "GuiProgressView.h"
+#include "GuiAssistant.h"
 #include "GuiRef.h"
 #include "GuiSearch.h"
 #include "GuiSendto.h"
@@ -206,6 +207,8 @@ Dialog * createDialog(GuiView & gv, string const & name)
 		return new GuiWrap(gv);
 	if (name == "progress")
 		return new GuiProgressView(gv);
+	if (name == "assistant")
+		return new GuiAssistant(gv);
 
 	return nullptr;
 }

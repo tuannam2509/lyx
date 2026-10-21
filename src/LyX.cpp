@@ -36,6 +36,7 @@
 #include "HunspellChecker.h"
 #include "KeyMap.h"
 #include "Language.h"
+#include "LanguageToolChecker.h"
 #include "LaTeXFonts.h"
 #include "LayoutFile.h"
 #include "LyXAction.h"
@@ -154,7 +155,8 @@ struct LyX::Impl {
 	Impl()
 		: latexfonts_(nullptr), spell_checker_(nullptr),
 		  apple_spell_checker_(nullptr), aspell_checker_(nullptr),
-		  enchant_checker_(nullptr), hunspell_checker_(nullptr)
+		  enchant_checker_(nullptr), hunspell_checker_(nullptr),
+		  languagetool_checker_(nullptr)
 	{}
 
 	~Impl()
@@ -164,6 +166,7 @@ struct LyX::Impl {
 		delete aspell_checker_;
 		delete enchant_checker_;
 		delete hunspell_checker_;
+		delete languagetool_checker_;
 	}
 
 	///
@@ -219,6 +222,8 @@ struct LyX::Impl {
 	SpellChecker * enchant_checker_;
 	///
 	SpellChecker * hunspell_checker_;
+	///
+	SpellChecker * languagetool_checker_;
 };
 
 
@@ -948,6 +953,7 @@ bool LyX::init()
 	}
 	if (!lyxrc.path_prefix.empty())
 		prependEnvPath("PATH", replaceEnvironmentPath(lyxrc.path_prefix));
+	applyTexDistributionPath();
 
 	// Check that user LyX directory is ok.
 	{
@@ -1035,6 +1041,8 @@ bool LyX::init()
 	// Prepend path prefix a second time to take the user preferences into a account
 	if (!lyxrc.path_prefix.empty())
 		prependEnvPath("PATH", replaceEnvironmentPath(lyxrc.path_prefix));
+	// The LaTeX distribution chosen by the user comes first
+	applyTexDistributionPath();
 
 	FileName const document_path(lyxrc.document_path);
 	if (document_path.exists() && document_path.isDirectory())
@@ -1680,6 +1688,10 @@ void setSpellChecker()
 #else
 		singleton_->pimpl_->spell_checker_ = nullptr;
 #endif
+	} else if (lyxrc.spellchecker == "languagetool") {
+		if (!singleton_->pimpl_->languagetool_checker_)
+			singleton_->pimpl_->languagetool_checker_ = new LanguageToolChecker;
+		singleton_->pimpl_->spell_checker_ = singleton_->pimpl_->languagetool_checker_;
 	} else if (lyxrc.spellchecker == "hunspell") {
 #if defined(USE_HUNSPELL)
 		if (!singleton_->pimpl_->hunspell_checker_)

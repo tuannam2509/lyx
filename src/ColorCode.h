@@ -174,6 +174,10 @@ enum ColorCode {
 
 	/// Error box text color
 	Color_error,
+	/// Underline of misspelled words
+	Color_spellingerror,
+	/// Underline of grammar and style issues
+	Color_grammarerror,
 	/// End of line (EOL) marker color
 	Color_eolmarker,
 	/// Added space colour

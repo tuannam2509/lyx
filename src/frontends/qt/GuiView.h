@@ -298,9 +298,6 @@ private:
 	///
 	TabWorkArea * addTabWorkArea();
 
-	///
-	void scheduleRedrawWorkAreas();
-
 	/// connect to signals in the given BufferView
 	void connectBufferView(BufferView & bv);
 	/// disconnect from signals in the given BufferView
@@ -336,6 +333,8 @@ public:
 
 	///
 	void resetDialogs();
+	/// redraw all work areas of this window
+	void scheduleRedrawWorkAreas();
 
 	/// Hide all visible dialogs
 	void hideAll() const;

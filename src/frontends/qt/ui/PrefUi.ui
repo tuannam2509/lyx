@@ -82,6 +82,23 @@
         <item row="1" column="2">
          <layout class="QHBoxLayout" name="horizontalLayout"/>
         </item>
+        <item row="2" column="0">
+         <widget class="QLabel" name="uiThemeLA">
+          <property name="text">
+           <string>&amp;Theme:</string>
+          </property>
+          <property name="buddy">
+           <cstring>uiThemeCO</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <widget class="QComboBox" name="uiThemeCO">
+          <property name="toolTip">
+           <string>The look of the user interface. The modern themes use a calm, paper-like design; "Classic" uses the plain style of your system.</string>
+          </property>
+         </widget>
+        </item>
        </layout>
       </item>
       <item row="0" column="1">

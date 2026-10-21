@@ -506,6 +506,14 @@ public:
 
 	/// query state of spell checker results
 	bool needsSpellCheck() const;
+	/// result of the last spell/grammar check at \p pos
+	SpellChecker::Result spellResult(pos_type pos) const;
+	/// Look up the issue reported at position \p from by a checker that
+	/// checks whole paragraphs (e.g. LanguageTool). On return, [from, to)
+	/// is the extent of the issue and \p wl contains the flagged text.
+	SpellChecker::Result spellCheckPhrase(pos_type & from, pos_type & to,
+		WordLangTuple & wl, docstring_list & suggestions,
+		bool do_suggestion = true) const;
 	/// mark position of text manipulation to inform the spell checker
 	/// default value -1 marks the whole paragraph to be checked (again)
 	void requestSpellCheck(pos_type pos = -1);

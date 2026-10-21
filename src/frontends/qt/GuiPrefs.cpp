@@ -57,7 +57,20 @@
 #include <QAbstractItemModel>
 #include <QCheckBox>
 #include <QColorDialog>
+#include <QDir>
+#include <QFileDialog>
 #include <QFontDatabase>
+#include <QFormLayout>
+#include <QGroupBox>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QLabel>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkRequest>
+#include <QUrl>
+#include <QVBoxLayout>
 #include <QHeaderView>
 #include <QLineEdit>
 #include <QMessageBox>
@@ -1575,8 +1588,9 @@ PrefSpellchecker::PrefSpellchecker(GuiPreferences * form)
 #if defined(USE_HUNSPELL)
 	spellcheckerCB->addItem(qt_("Hunspell"), QString("hunspell"));
 #endif
+	spellcheckerCB->addItem(qt_("LanguageTool (spelling and grammar)"), QString("languagetool"));
 
-	#if defined(CONNECT_APPLESPELL) || defined(USE_ASPELL) || defined(USE_ENCHANT) || defined(USE_HUNSPELL)
+	#if 1
 		connect(spellcheckerCB, SIGNAL(currentIndexChanged(int)),
 			this, SIGNAL(changed()));
 		connect(altLanguageED, SIGNAL(textChanged(QString)),
@@ -1636,6 +1650,248 @@ void PrefSpellchecker::on_spellcheckerCB_currentIndexChanged(int index)
 	compoundWordCB->setEnabled(spellchecker == QString("aspell"));
 }
 
+
+
+/////////////////////////////////////////////////////////////////////
+//
+// PrefWritingAssistant
+//
+/////////////////////////////////////////////////////////////////////
+
+PrefWritingAssistant::PrefWritingAssistant(GuiPreferences * form)
+	: PrefModule(catLanguage, N_("Writing Assistant & LaTeX"), form),
+	  nam_(new QNetworkAccessManager(this))
+{
+	QVBoxLayout * top = new QVBoxLayout(this);
+
+	// LaTeX distribution
+	QGroupBox * texGB = new QGroupBox(qt_("LaTeX Distribution (TeX Live or MiKTeX)"), this);
+	QFormLayout * texFL = new QFormLayout(texGB);
+	texPathED = new QLineEdit(texGB);
+	texPathED->setPlaceholderText(
+#if defined(_WIN32)
+		"C:\\Program Files\\MiKTeX  or  C:\\texlive\\2025"
+#elif defined(__APPLE__)
+		"/usr/local/texlive/2025  or  /Library/TeX/texbin"
+#else
+		"/usr/local/texlive/2025"
+#endif
+		);
+	texPathED->setToolTip(qt_("Installation folder of your LaTeX distribution, or its folder "
+		"of programs (the one containing pdflatex). It is added to the PATH. Leave empty "
+		"to use the LaTeX found in the PATH.\nAfter changing it, use Tools > Reconfigure "
+		"and restart LyX."));
+	QPushButton * texBrowsePB = new QPushButton(qt_("Bro&wse..."), texGB);
+	QHBoxLayout * texHL = new QHBoxLayout;
+	texHL->addWidget(texPathED, 1);
+	texHL->addWidget(texBrowsePB);
+	texFL->addRow(qt_("Folder:"), texHL);
+	texStatusLA = new QLabel(texGB);
+	texStatusLA->setWordWrap(true);
+	texFL->addRow(QString(), texStatusLA);
+	top->addWidget(texGB);
+
+	// LanguageTool
+	QGroupBox * ltGB = new QGroupBox(qt_("LanguageTool (spelling and grammar while you type)"), this);
+	QFormLayout * ltFL = new QFormLayout(ltGB);
+	ltUrlED = new QLineEdit(ltGB);
+	ltUrlED->setPlaceholderText("http://localhost:8081/v2");
+	ltUrlED->setToolTip(qt_("Address of your LanguageTool server, e.g. http://localhost:8081/v2.\n"
+		"Select \"LanguageTool\" as spellchecker engine in Language Settings > Spellchecker to use it."));
+	ltFL->addRow(qt_("Server &URL:"), ltUrlED);
+	ltPickyCB = new QCheckBox(qt_("Also report &style issues (picky mode)"), ltGB);
+	ltFL->addRow(QString(), ltPickyCB);
+	QPushButton * ltTestPB = new QPushButton(qt_("&Test Connection"), ltGB);
+	ltStatusLA = new QLabel(ltGB);
+	ltStatusLA->setWordWrap(true);
+	QHBoxLayout * ltHL = new QHBoxLayout;
+	ltHL->addWidget(ltTestPB);
+	ltHL->addWidget(ltStatusLA, 1);
+	ltFL->addRow(QString(), ltHL);
+	top->addWidget(ltGB);
+
+	// AI
+	QGroupBox * aiGB = new QGroupBox(qt_("AI Assistant (OpenAI-compatible API)"), this);
+	QFormLayout * aiFL = new QFormLayout(aiGB);
+	aiUrlED = new QLineEdit(aiGB);
+	aiUrlED->setPlaceholderText("http://localhost:8080/v1");
+	aiUrlED->setToolTip(qt_("Base URL of the API, including /v1. Works with OpenAI, "
+		"llama.cpp, Ollama, LM Studio, vLLM and similar servers."));
+	aiFL->addRow(qt_("API &base URL:"), aiUrlED);
+	aiKeyED = new QLineEdit(aiGB);
+	aiKeyED->setEchoMode(QLineEdit::Password);
+	aiKeyED->setPlaceholderText(qt_("(not needed for most local servers)"));
+	aiKeyED->setToolTip(qt_("Note that the key is stored in plain text in your LyX preferences file."));
+	aiFL->addRow(qt_("API &key:"), aiKeyED);
+	aiModelCO = new QComboBox(aiGB);
+	aiModelCO->setEditable(true);
+	aiModelCO->setToolTip(qt_("Leave empty to use the first model offered by the server."));
+	QPushButton * aiFetchPB = new QPushButton(qt_("&Fetch Models"), aiGB);
+	QHBoxLayout * aiHL = new QHBoxLayout;
+	aiHL->addWidget(aiModelCO, 1);
+	aiHL->addWidget(aiFetchPB);
+	aiFL->addRow(qt_("Model:"), aiHL);
+	aiStatusLA = new QLabel(aiGB);
+	aiStatusLA->setWordWrap(true);
+	aiFL->addRow(QString(), aiStatusLA);
+	top->addWidget(aiGB);
+
+	// SearXNG
+	QGroupBox * sxGB = new QGroupBox(qt_("Web Search (SearXNG)"), this);
+	QFormLayout * sxFL = new QFormLayout(sxGB);
+	searxUrlED = new QLineEdit(sxGB);
+	searxUrlED->setPlaceholderText("http://localhost:8888");
+	searxUrlED->setToolTip(qt_("Base URL of a SearXNG instance. The \"json\" format must be "
+		"enabled in its settings.yml (search: formats: [html, json])."));
+	sxFL->addRow(qt_("&SearXNG URL:"), searxUrlED);
+	QPushButton * sxTestPB = new QPushButton(qt_("T&est Search"), sxGB);
+	searxStatusLA = new QLabel(sxGB);
+	searxStatusLA->setWordWrap(true);
+	QHBoxLayout * sxHL = new QHBoxLayout;
+	sxHL->addWidget(sxTestPB);
+	sxHL->addWidget(searxStatusLA, 1);
+	sxFL->addRow(QString(), sxHL);
+	top->addWidget(sxGB);
+	top->addStretch(1);
+
+	connect(texPathED, SIGNAL(textChanged(QString)), this, SIGNAL(changed()));
+	connect(texPathED, SIGNAL(textChanged(QString)), this, SLOT(updateTexStatus()));
+	connect(texBrowsePB, SIGNAL(clicked()), this, SLOT(browseTex()));
+	connect(ltUrlED, SIGNAL(textChanged(QString)), this, SIGNAL(changed()));
+	connect(ltPickyCB, SIGNAL(clicked()), this, SIGNAL(changed()));
+	connect(aiUrlED, SIGNAL(textChanged(QString)), this, SIGNAL(changed()));
+	connect(aiKeyED, SIGNAL(textChanged(QString)), this, SIGNAL(changed()));
+	connect(aiModelCO, SIGNAL(editTextChanged(QString)), this, SIGNAL(changed()));
+	connect(searxUrlED, SIGNAL(textChanged(QString)), this, SIGNAL(changed()));
+	connect(ltTestPB, SIGNAL(clicked()), this, SLOT(testLanguageTool()));
+	connect(aiFetchPB, SIGNAL(clicked()), this, SLOT(fetchModels()));
+	connect(sxTestPB, SIGNAL(clicked()), this, SLOT(testSearxng()));
+}
+
+
+void PrefWritingAssistant::applyRC(LyXRC & rc) const
+{
+	rc.tex_distribution_path = internal_path(fromqstr(texPathED->text().trimmed()));
+	rc.languagetool_url = fromqstr(ltUrlED->text().trimmed());
+	rc.languagetool_picky = ltPickyCB->isChecked();
+	rc.ai_api_url = fromqstr(aiUrlED->text().trimmed());
+	rc.ai_api_key = fromqstr(aiKeyED->text().trimmed());
+	rc.ai_model = fromqstr(aiModelCO->currentText().trimmed());
+	rc.searxng_url = fromqstr(searxUrlED->text().trimmed());
+}
+
+
+void PrefWritingAssistant::updateRC(LyXRC const & rc)
+{
+	texPathED->setText(toqstr(external_path(rc.tex_distribution_path)));
+	updateTexStatus();
+	ltUrlED->setText(toqstr(rc.languagetool_url));
+	ltPickyCB->setChecked(rc.languagetool_picky);
+	aiUrlED->setText(toqstr(rc.ai_api_url));
+	aiKeyED->setText(toqstr(rc.ai_api_key));
+	aiModelCO->setEditText(toqstr(rc.ai_model));
+	searxUrlED->setText(toqstr(rc.searxng_url));
+}
+
+
+void PrefWritingAssistant::browseTex()
+{
+	QString const dir = QFileDialog::getExistingDirectory(this,
+		qt_("Select the folder of your LaTeX distribution"), texPathED->text());
+	if (!dir.isEmpty())
+		texPathED->setText(QDir::toNativeSeparators(dir));
+}
+
+
+void PrefWritingAssistant::updateTexStatus()
+{
+	QString const path = texPathED->text().trimmed();
+	if (path.isEmpty()) {
+		texStatusLA->setText(qt_("Using the LaTeX programs found in the PATH."));
+		return;
+	}
+	string const bin = texDistributionBinDir(internal_path(fromqstr(path)));
+	if (bin.empty())
+		texStatusLA->setText(qt_("No LaTeX programs (pdflatex) found in this folder."));
+	else
+		texStatusLA->setText(qt_("Found LaTeX programs in %1. Use Tools > Reconfigure "
+			"after applying, then restart LyX.").arg(toqstr(external_path(bin))));
+}
+
+
+void PrefWritingAssistant::probe(QString const & url, QLabel * label,
+	std::function<QString(QByteArray const &)> const & describe)
+{
+	label->setText(qt_("Connecting..."));
+	QNetworkRequest req{QUrl(url)};
+	QString const key = aiKeyED->text().trimmed();
+	if (label == aiStatusLA && !key.isEmpty())
+		req.setRawHeader("Authorization", "Bearer " + key.toUtf8());
+	req.setRawHeader("Accept", "application/json");
+#if QT_VERSION >= 0x050F00
+	req.setTransferTimeout(10000);
+#endif
+	QNetworkReply * reply = nam_->get(req);
+	connect(reply, &QNetworkReply::finished, this, [reply, label, describe]() {
+		reply->deleteLater();
+		if (reply->error() != QNetworkReply::NoError) {
+			label->setText(qt_("Failed: %1").arg(reply->errorString()));
+			return;
+		}
+		label->setText(describe(reply->readAll()));
+	});
+}
+
+
+void PrefWritingAssistant::testLanguageTool()
+{
+	QString url = ltUrlED->text().trimmed();
+	while (url.endsWith('/'))
+		url.chop(1);
+	if (url.isEmpty())
+		url = "http://localhost:8081";
+	if (!url.endsWith("/v2"))
+		url += "/v2";
+	probe(url + "/languages", ltStatusLA, [](QByteArray const & data) {
+		int const n = QJsonDocument::fromJson(data).array().size();
+		return qt_("Connected. The server supports %1 language variants.").arg(n);
+	});
+}
+
+
+void PrefWritingAssistant::fetchModels()
+{
+	QString url = aiUrlED->text().trimmed();
+	while (url.endsWith('/'))
+		url.chop(1);
+	QComboBox * combo = aiModelCO;
+	probe(url + "/models", aiStatusLA, [combo](QByteArray const & data) {
+		QJsonArray const models =
+			QJsonDocument::fromJson(data).object().value("data").toArray();
+		QString const current = combo->currentText();
+		combo->clear();
+		for (QJsonValue const & m : models)
+			combo->addItem(m.toObject().value("id").toString());
+		combo->setEditText(current);
+		return qt_("Connected. %1 model(s) available.").arg(models.size());
+	});
+}
+
+
+void PrefWritingAssistant::testSearxng()
+{
+	QString url = searxUrlED->text().trimmed();
+	while (url.endsWith('/'))
+		url.chop(1);
+	probe(url + "/search?format=json&q=LyX", searxStatusLA, [](QByteArray const & data) {
+		QJsonDocument const doc = QJsonDocument::fromJson(data);
+		if (!doc.isObject())
+			return qt_("The server answered, but not with JSON. "
+			           "Enable the json format in the SearXNG settings.");
+		int const n = doc.object().value("results").toArray().size();
+		return qt_("Connected. The test search returned %1 results.").arg(n);
+	});
+}
 
 
 /////////////////////////////////////////////////////////////////////
@@ -2619,7 +2875,14 @@ PrefUserInterface::PrefUserInterface(GuiPreferences * form)
 		this, SIGNAL(changed()));
 	connect(tooltipCB, SIGNAL(toggled(bool)),
 		this, SIGNAL(changed()));
+	connect(uiThemeCO, SIGNAL(activated(int)),
+		this, SIGNAL(changed()));
 	lastfilesSB->setMaximum(maxlastfiles);
+
+	uiThemeCO->addItem(qt_("Modern (follow system light/dark)"), "modern");
+	uiThemeCO->addItem(qt_("Modern Light"), "modern-light");
+	uiThemeCO->addItem(qt_("Modern Dark"), "modern-dark");
+	uiThemeCO->addItem(qt_("Classic"), "classic");
 
 	iconSetCO->addItem(qt_("Default"), QString());
 	iconSetCO->addItem(qt_("Classic"), "classic");
@@ -2640,6 +2903,8 @@ void PrefUserInterface::applyRC(LyXRC & rc) const
 	rc.use_system_theme_icons = useSystemThemeIconsCB->isChecked();
 	rc.num_lastfiles = lastfilesSB->value();
 	rc.use_tooltip = tooltipCB->isChecked();
+	rc.ui_theme = fromqstr(uiThemeCO->itemData(
+		uiThemeCO->currentIndex()).toString());
 }
 
 
@@ -2653,6 +2918,10 @@ void PrefUserInterface::updateRC(LyXRC const & rc)
 	uiFileED->setText(toqstr(external_path(rc.ui_file)));
 	lastfilesSB->setValue(rc.num_lastfiles);
 	tooltipCB->setChecked(rc.use_tooltip);
+	int theme = uiThemeCO->findData(toqstr(rc.ui_theme));
+	if (theme < 0)
+		theme = 0;
+	uiThemeCO->setCurrentIndex(theme);
 }
 
 
@@ -3563,6 +3832,7 @@ GuiPreferences::GuiPreferences(GuiView & lv)
 
 	addModule(new PrefLanguage(this));
 	addModule(new PrefSpellchecker(this));
+	addModule(new PrefWritingAssistant(this));
 
 	PrefOutput * output = new PrefOutput(this);
 	addModule(output);

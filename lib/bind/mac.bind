@@ -279,6 +279,7 @@ Format 5
 \bind "C-A-Prior"                    "scroll page up"
 \bind "C-A-Next"                     "scroll page down"
 \bind "F7"                           "dialog-show spellchecker"
+\bind "F8"			"dialog-toggle assistant"
 \bind "S-F7"                         "thesaurus-entry"
 
 \bind "C-M-o"                        "dialog-show toc"

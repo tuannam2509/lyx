@@ -237,8 +237,11 @@ void RowPainter::paintMisspelledMark(Row::Element const & e) const
 		if (x1 > x2)
 			swap(x1, x2);
 
+		ColorCode const col =
+			par_.spellResult(range.first) == SpellChecker::GRAMMAR_ERROR
+			? Color_grammarerror : Color_spellingerror;
 		pi_.pain.line(int(x_ + x1), y, int(x_ + x2), y,
-		              Color_error,
+		              col,
 		              Painter::line_onoffdash, thickness);
 		pos = range.last + 1;
 	}

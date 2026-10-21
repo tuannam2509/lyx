@@ -13,7 +13,7 @@
 #ifndef SPELL_BASE_H
 #define SPELL_BASE_H
 
-#include "support/strfwd.h"
+#include "support/docstring.h"
 #include <vector>
 
 
@@ -47,7 +47,9 @@ public:
 		/// number of document dictionary "word"
 		DOCUMENT_LEARNED_WORD,
 		/// missing dictionary for language
-		NO_DICTIONARY
+		NO_DICTIONARY,
+		/// grammar, style or typography issue (reported by grammar checkers)
+		GRAMMAR_ERROR
 	};
 
 	SpellChecker() : change_number_(0) {}
@@ -90,8 +92,51 @@ public:
 	/// if speller can spell check whole paragraph return true
 	virtual bool canCheckParagraph() const { return false; }
 
+	/// A part of a paragraph, as seen by a checker which checks whole
+	/// paragraphs. Markup segments (insets, deleted text, foreign
+	/// language...) are not checked themselves; the checker treats them
+	/// as if \c interpret_as was written there instead.
+	struct TextSegment {
+		docstring text;
+		bool markup = false;
+		docstring interpret_as;
+	};
+
+	/// if true, the complete paragraph is checked with checkSegments()
+	/// after each change. This is needed by grammar checkers, which need
+	/// the context of a word.
+	virtual bool checksWholeParagraph() const { return false; }
+
+	/// check a complete paragraph. The positions reported afterwards by
+	/// misspelledWord() are offsets (in characters) into the
+	/// concatenation of the text of all segments.
+	virtual Result checkSegments(std::vector<TextSegment> const &,
+				     Language const *)
+	{
+		return WORD_OK;
+	}
+
+	/// while blocking, checks do not return before the result is known.
+	/// Used by checkers which get their results asynchronously, when
+	/// the spellchecker dialog walks through the document.
+	virtual void setBlocking(bool) {}
+
 	/// count of misspelled words
 	virtual int numMisspelledWords() const { return 0; }
+
+	/// kind of the problem of the misspelled word at index:
+	/// UNKNOWN_WORD for spelling errors, GRAMMAR_ERROR for others
+	virtual Result misspelledWordResult(int /* index */) const
+	{
+		return UNKNOWN_WORD;
+	}
+
+	/// a human readable explanation of the problem found for a word
+	/// or phrase reported by the last check. Empty if not available.
+	virtual docstring explanation(WordLangTuple const &) const
+	{
+		return docstring();
+	}
 
 	/// start position and length of misspelled word at index
 	virtual void misspelledWord(

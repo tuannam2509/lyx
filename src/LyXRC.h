@@ -41,6 +41,9 @@ class LyXRC
 public:
 	enum LyXRCTags {
 		RC_ACCEPT_COMPOUND = 1,
+		RC_AI_API_KEY,
+		RC_AI_API_URL,
+		RC_AI_MODEL,
 		RC_ALT_LANG,
 		RC_AUTOCORRECTION_MATH,
 		RC_AUTOREGIONDELETE,
@@ -102,6 +105,8 @@ public:
 		RC_GUI_LANGUAGE,
 		RC_HUNSPELLDIR_PATH,
 		RC_ICON_SET,
+		RC_LANGUAGETOOL_PICKY,
+		RC_LANGUAGETOOL_URL,
 		RC_INDEX_ALTERNATIVES,
 		RC_INDEX_COMMAND,
 		RC_INPUT,
@@ -164,15 +169,18 @@ public:
 		RC_SORT_LAYOUTS,
 		RC_SPELLCHECK_CONTINUOUSLY,
 		RC_SPELLCHECK_NOTES,
+		RC_SEARXNG_URL,
 		RC_SPELLCHECKER,
 		RC_SPLITINDEX_COMMAND,
 		RC_TEMPDIRPATH,
 		RC_TEMPLATEPATH,
 		RC_TEX_ALLOWS_SPACES,
+		RC_TEX_DISTRIBUTION_PATH,
 		RC_TEX_EXPECTS_WINDOWS_PATHS,
 		RC_TEXINPUTS_PREFIX,
 		RC_THESAURUSDIRPATH,
 		RC_UIFILE,
+		RC_UI_THEME,
 		RC_USELASTFILEPOS,
 		RC_USER_EMAIL,
 		RC_USER_INITIALS,
@@ -473,6 +481,9 @@ public:
 	std::string user_initials;
 	/// icon set name
 	std::string icon_set;
+	/// Theme of the user interface: "modern" (follows the system light/dark
+	/// setting), "modern-light", "modern-dark" or "classic"
+	std::string ui_theme = "modern";
 	/// whether to use the icons from the theme
 	bool use_system_theme_icons = false;
 	/// True if the TeX engine cannot handle posix paths
@@ -492,6 +503,21 @@ public:
 	bool use_converter_cache = true;
 	/// Forbid use of external converters with 'needauth' option
 	bool use_converter_needauth_forbidden = true;
+	/// Folder of the LaTeX distribution (TeX Live or MiKTeX). Its folder
+	/// of executables is added to the PATH environment variable.
+	std::string tex_distribution_path;
+	/// Base URL of the LanguageTool server (HTTP API v2)
+	std::string languagetool_url = "http://localhost:8081/v2";
+	/// Ask LanguageTool for additional "picky" (style) checks?
+	bool languagetool_picky = false;
+	/// Base URL of an OpenAI-compatible API (used by the writing assistant)
+	std::string ai_api_url = "http://localhost:8080/v1";
+	/// API key for the OpenAI-compatible API (may be empty for local servers)
+	std::string ai_api_key;
+	/// Model name used by the writing assistant (empty: first model reported by the server)
+	std::string ai_model;
+	/// Base URL of a SearXNG instance, used for web searches by the assistant
+	std::string searxng_url = "http://localhost:8888";
 	/// Ask user before calling external converters with 'needauth' option
 	bool use_converter_needauth = true;
 	/// The maximum age of cache files in seconds
@@ -511,7 +537,7 @@ public:
 	/// Toggle statusbar in fullscreen mode?
 	bool full_screen_statusbar = true;
 	/// Limit the text width?
-	bool screen_limit = false;
+	bool screen_limit = true;
 	/// Width of limited screen width 
 	Length screen_width = Length(7, Length::IN); 
 	///
@@ -589,6 +615,14 @@ public:
 
 
 void actOnUpdatedPrefs(LyXRC const & lyxrc_orig, LyXRC const & lyxrc_new);
+
+/// The folder with the executables (pdflatex etc.) of the LaTeX
+/// distribution installed at \p root (TeX Live or MiKTeX), or empty if
+/// none was found. \p root may also be the folder of executables itself.
+std::string texDistributionBinDir(std::string const & root);
+
+/// Add the executables of lyxrc.tex_distribution_path to PATH
+void applyTexDistributionPath();
 
 ///
 extern LyXRC lyxrc;

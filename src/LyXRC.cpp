@@ -35,6 +35,7 @@
 #include "support/debug.h"
 #include "support/environment.h"
 #include "support/FileName.h"
+#include "support/FileNameList.h"
 #include "support/filetools.h"
 #include "support/lstrings.h"
 #include "support/os.h"
@@ -60,10 +61,13 @@ namespace {
 
 // The format should also be updated in configure.py, and conversion code
 // should be added to prefs2prefs_prefs.py.
-static unsigned int const LYXRC_FILEFORMAT = 37; // chillenb: screen_width and screen_limit
+static unsigned int const LYXRC_FILEFORMAT = 38; // writing assistant, LanguageTool and UI theme
 // when adding something to this array keep it sorted!
 LexerKeyword lyxrcTags[] = {
 	{ "\\accept_compound", LyXRC::RC_ACCEPT_COMPOUND },
+	{ "\\ai_api_key", LyXRC::RC_AI_API_KEY },
+	{ "\\ai_api_url", LyXRC::RC_AI_API_URL },
+	{ "\\ai_model", LyXRC::RC_AI_MODEL },
 	{ "\\allow_geometry_session", LyXRC::RC_GEOMETRY_SESSION },
 	{ "\\alternate_language", LyXRC::RC_ALT_LANG },
 	{ "\\auto_number", LyXRC::RC_AUTO_NUMBER },
@@ -142,6 +146,8 @@ LexerKeyword lyxrcTags[] = {
 	{ "\\language_custom_package", LyXRC::RC_LANGUAGE_CUSTOM_PACKAGE },
 	{ "\\language_global_options", LyXRC::RC_LANGUAGE_GLOBAL_OPTIONS },
 	{ "\\language_package_selection", LyXRC::RC_LANGUAGE_PACKAGE_SELECTION },
+	{ "\\languagetool_picky", LyXRC::RC_LANGUAGETOOL_PICKY },
+	{ "\\languagetool_url", LyXRC::RC_LANGUAGETOOL_URL },
 	{ "\\load_session", LyXRC::RC_LOADSESSION },
 	{ "\\mac_dontswap_ctrl_meta", LyXRC::RC_MAC_DONTSWAP_CTRL_META },
 	{ "\\mac_like_cursor_movement", LyXRC::RC_MAC_LIKE_CURSOR_MOVEMENT },
@@ -180,6 +186,7 @@ LexerKeyword lyxrcTags[] = {
 	{ "\\screen_zoom", LyXRC::RC_SCREEN_ZOOM },
 	{ "\\scroll_below_document", LyXRC::RC_SCROLL_BELOW_DOCUMENT },
 	{ "\\scroll_wheel_zoom", LyXRC::RC_SCROLL_WHEEL_ZOOM },
+	{ "\\searxng_url", LyXRC::RC_SEARXNG_URL },
 	{ "\\serverpipe", LyXRC::RC_SERVERPIPE },
 	{ "\\set_color", LyXRC::RC_SET_COLOR },
 	{ "\\show_banner", LyXRC::RC_SHOW_BANNER },
@@ -193,10 +200,12 @@ LexerKeyword lyxrcTags[] = {
 	{ "\\tempdir_path", LyXRC::RC_TEMPDIRPATH },
 	{ "\\template_path", LyXRC::RC_TEMPLATEPATH },
 	{ "\\tex_allows_spaces", LyXRC::RC_TEX_ALLOWS_SPACES },
+	{ "\\tex_distribution_path", LyXRC::RC_TEX_DISTRIBUTION_PATH },
 	{ "\\tex_expects_windows_paths", LyXRC::RC_TEX_EXPECTS_WINDOWS_PATHS },
 	{ "\\texinputs_prefix", LyXRC::RC_TEXINPUTS_PREFIX },
 	{ "\\thesaurusdir_path", LyXRC::RC_THESAURUSDIRPATH },
 	{ "\\ui_file", LyXRC::RC_UIFILE },
+	{ "\\ui_theme", LyXRC::RC_UI_THEME },
 	{ "\\use_converter_cache", LyXRC::RC_USE_CONVERTER_CACHE },
 	{ "\\use_converter_needauth", LyXRC::RC_USE_CONVERTER_NEEDAUTH },
 	{ "\\use_converter_needauth_forbidden", LyXRC::RC_USE_CONVERTER_NEEDAUTH_FORBIDDEN },
@@ -601,6 +610,39 @@ LyXRC::ReturnValues LyXRC::read(Lexer & lexrc, bool check_format)
 
 		case RC_ICON_SET:
 			lexrc >> icon_set;
+			break;
+
+		case RC_UI_THEME:
+			lexrc >> ui_theme;
+			break;
+
+		case RC_LANGUAGETOOL_URL:
+			lexrc >> languagetool_url;
+			break;
+
+		case RC_LANGUAGETOOL_PICKY:
+			lexrc >> languagetool_picky;
+			break;
+
+		case RC_AI_API_URL:
+			lexrc >> ai_api_url;
+			break;
+
+		case RC_AI_API_KEY:
+			lexrc >> ai_api_key;
+			break;
+
+		case RC_AI_MODEL:
+			lexrc >> ai_model;
+			break;
+
+		case RC_SEARXNG_URL:
+			lexrc >> searxng_url;
+			break;
+
+		case RC_TEX_DISTRIBUTION_PATH:
+			if (lexrc.next(true))
+				tex_distribution_path = os::internal_path(lexrc.getString());
 			break;
 
 		case RC_USE_SYSTEM_THEME_ICONS:
@@ -1624,6 +1666,14 @@ void LyXRC::write(ostream & os, bool ignore_system_lyxrc, string const & name) c
 		if (tag != RC_LAST)
 			break;
 		// fall through
+	case RC_UI_THEME:
+		if (ignore_system_lyxrc ||
+		    ui_theme != system_lyxrc.ui_theme) {
+			os << "\\ui_theme \"" << ui_theme << "\"\n";
+		}
+		if (tag != RC_LAST)
+			break;
+		// fall through
 	case RC_USE_SYSTEM_THEME_ICONS:
 		if (ignore_system_lyxrc ||
 			  use_system_theme_icons != system_lyxrc.use_system_theme_icons) {
@@ -2458,6 +2508,64 @@ void LyXRC::write(ostream & os, bool ignore_system_lyxrc, string const & name) c
 		if (tag != RC_LAST)
 			break;
 		// fall through
+	case RC_TEX_DISTRIBUTION_PATH:
+		if (ignore_system_lyxrc ||
+		    tex_distribution_path != system_lyxrc.tex_distribution_path) {
+			os << "\\tex_distribution_path \""
+			   << os::external_path(tex_distribution_path) << "\"\n";
+		}
+		if (tag != RC_LAST)
+			break;
+		// fall through
+	case RC_LANGUAGETOOL_URL:
+		if (ignore_system_lyxrc ||
+		    languagetool_url != system_lyxrc.languagetool_url) {
+			os << "\\languagetool_url \"" << languagetool_url << "\"\n";
+		}
+		if (tag != RC_LAST)
+			break;
+		// fall through
+	case RC_LANGUAGETOOL_PICKY:
+		if (ignore_system_lyxrc ||
+		    languagetool_picky != system_lyxrc.languagetool_picky) {
+			os << "\\languagetool_picky "
+			   << convert<string>(languagetool_picky) << '\n';
+		}
+		if (tag != RC_LAST)
+			break;
+		// fall through
+	case RC_AI_API_URL:
+		if (ignore_system_lyxrc ||
+		    ai_api_url != system_lyxrc.ai_api_url) {
+			os << "\\ai_api_url \"" << ai_api_url << "\"\n";
+		}
+		if (tag != RC_LAST)
+			break;
+		// fall through
+	case RC_AI_API_KEY:
+		if (ignore_system_lyxrc ||
+		    ai_api_key != system_lyxrc.ai_api_key) {
+			os << "\\ai_api_key \"" << ai_api_key << "\"\n";
+		}
+		if (tag != RC_LAST)
+			break;
+		// fall through
+	case RC_AI_MODEL:
+		if (ignore_system_lyxrc ||
+		    ai_model != system_lyxrc.ai_model) {
+			os << "\\ai_model \"" << ai_model << "\"\n";
+		}
+		if (tag != RC_LAST)
+			break;
+		// fall through
+	case RC_SEARXNG_URL:
+		if (ignore_system_lyxrc ||
+		    searxng_url != system_lyxrc.searxng_url) {
+			os << "\\searxng_url \"" << searxng_url << "\"\n";
+		}
+		if (tag != RC_LAST)
+			break;
+		// fall through
 	case RC_SPELLCHECKER:
 		if (ignore_system_lyxrc ||
 		    spellchecker != system_lyxrc.spellchecker) {
@@ -2878,6 +2986,64 @@ void LyXRC::write(ostream & os, bool ignore_system_lyxrc, string const & name) c
 }
 
 
+string texDistributionBinDir(string const & root)
+{
+	if (root.empty())
+		return string();
+	FileName const dir(root);
+	if (!dir.isDirectory())
+		return string();
+#if defined(_WIN32)
+	string const exe = "pdflatex.exe";
+#else
+	string const exe = "pdflatex";
+#endif
+	auto has_tex = [&exe](FileName const & d) {
+		return d.isDirectory() && FileName(addName(d.absFileName(), exe)).exists();
+	};
+	if (has_tex(dir))
+		return dir.absFileName();
+	// MiKTeX: <root>/miktex/bin/x64 or <root>/miktex/bin
+	// TeX Live: <root>/bin/<platform>, e.g. bin/x86_64-linux, bin/windows
+	// (or <root>/<year>/bin/<platform>)
+	vector<string> candidates = {
+		"miktex/bin/x64", "miktex/bin", "bin", "texmfs/install/miktex/bin/x64"
+	};
+	FileName const bindir(addName(dir.absFileName(), "bin"));
+	if (bindir.isDirectory())
+		for (FileName const & sub : bindir.dirList(""))
+			if (sub.isDirectory() && !prefixIs(sub.onlyFileName(), "."))
+				candidates.push_back("bin/" + sub.onlyFileName());
+	for (FileName const & year : dir.dirList(""))
+		if (year.isDirectory() && !prefixIs(year.onlyFileName(), ".")) {
+			FileName const ybin(addName(year.absFileName(), "bin"));
+			if (ybin.isDirectory())
+				for (FileName const & sub : ybin.dirList(""))
+					if (sub.isDirectory() && !prefixIs(sub.onlyFileName(), "."))
+						candidates.push_back(year.onlyFileName() + "/bin/" + sub.onlyFileName());
+		}
+	for (string const & c : candidates) {
+		FileName const d(addPath(dir.absFileName(), c));
+		if (has_tex(d))
+			return d.absFileName();
+	}
+	return string();
+}
+
+
+void applyTexDistributionPath()
+{
+	if (lyxrc.tex_distribution_path.empty())
+		return;
+	string const bin = texDistributionBinDir(lyxrc.tex_distribution_path);
+	if (bin.empty()) {
+		LYXERR0("No LaTeX programs found in " << lyxrc.tex_distribution_path);
+		return;
+	}
+	prependEnvPath("PATH", os::external_path(bin));
+}
+
+
 void actOnUpdatedPrefs(LyXRC const & lyxrc_orig, LyXRC const & lyxrc_new)
 {
 	// Why the switch you might ask. It is a trick to ensure that all
@@ -2950,6 +3116,11 @@ void actOnUpdatedPrefs(LyXRC const & lyxrc_orig, LyXRC const & lyxrc_new)
 	case LyXRC::RC_GROUP_LAYOUTS:
 	case LyXRC::RC_HUNSPELLDIR_PATH:
 	case LyXRC::RC_ICON_SET:
+	case LyXRC::RC_UI_THEME:
+	case LyXRC::RC_AI_API_KEY:
+	case LyXRC::RC_AI_API_URL:
+	case LyXRC::RC_AI_MODEL:
+	case LyXRC::RC_SEARXNG_URL:
 	case LyXRC::RC_INDEX_ALTERNATIVES:
 	case LyXRC::RC_INDEX_COMMAND:
 	case LyXRC::RC_JBIBTEX_COMMAND:
@@ -3036,6 +3207,19 @@ void actOnUpdatedPrefs(LyXRC const & lyxrc_orig, LyXRC const & lyxrc_new)
 		if (lyxrc_orig.spellchecker != lyxrc_new.spellchecker)
 			setSpellChecker();
 		// fall through
+	case LyXRC::RC_TEX_DISTRIBUTION_PATH:
+		if (lyxrc_orig.tex_distribution_path != lyxrc_new.tex_distribution_path) {
+			applyTexDistributionPath();
+			support::os::python(true);
+		}
+		// fall through
+	case LyXRC::RC_LANGUAGETOOL_URL:
+	case LyXRC::RC_LANGUAGETOOL_PICKY:
+		if ((lyxrc_orig.languagetool_url != lyxrc_new.languagetool_url
+		     || lyxrc_orig.languagetool_picky != lyxrc_new.languagetool_picky)
+		    && lyxrc_new.spellchecker == "languagetool" && theSpellChecker())
+			theSpellChecker()->advanceChangeNumber();
+		// fall through
 	case LyXRC::RC_SPELLCHECK_CONTINUOUSLY:
 	case LyXRC::RC_SPELLCHECK_NOTES:
 	case LyXRC::RC_SPLITINDEX_COMMAND:
@@ -3104,6 +3288,38 @@ string const LyXRC::getDescription(LyXRCTags tag)
 	switch (tag) {
 	case RC_ACCEPT_COMPOUND:
 		str = _("Consider run-together words, such as \"diskdrive\" for \"disk drive\", as legal words?");
+		break;
+
+	case RC_AI_API_URL:
+		str = _("Base URL of an OpenAI-compatible API used by the writing assistant, e.g. http://localhost:8080/v1");
+		break;
+
+	case RC_AI_API_KEY:
+		str = _("API key sent to the OpenAI-compatible server (leave empty for local servers without authentication).");
+		break;
+
+	case RC_AI_MODEL:
+		str = _("Name of the model used by the writing assistant. Leave empty to use the first model reported by the server.");
+		break;
+
+	case RC_LANGUAGETOOL_URL:
+		str = _("Base URL of a LanguageTool server (HTTP API v2), e.g. http://localhost:8081/v2");
+		break;
+
+	case RC_LANGUAGETOOL_PICKY:
+		str = _("Ask LanguageTool for additional style and typography checks.");
+		break;
+
+	case RC_SEARXNG_URL:
+		str = _("Base URL of a SearXNG instance used by the writing assistant to search the web. The JSON output format must be enabled in its settings.");
+		break;
+
+	case RC_TEX_DISTRIBUTION_PATH:
+		str = _("Folder of your LaTeX distribution (TeX Live or MiKTeX). Its programs are added to the PATH. Reconfigure LyX after changing it.");
+		break;
+
+	case RC_UI_THEME:
+		str = _("Select the look of the user interface. The modern themes use a calm, paper-like design.");
 		break;
 
 	case RC_ALT_LANG:

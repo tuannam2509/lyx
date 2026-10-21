@@ -140,6 +140,7 @@ SOURCEFILESCORE = \
 	InsetList.cpp \
 	Intl.cpp \
 	KeyMap.cpp \
+	LanguageToolChecker.cpp \
 	KeySequence.cpp \
 	Language.cpp \
 	LaTeX.cpp \
@@ -240,6 +241,7 @@ HEADERFILESCORE = \
 	InsetList.h \
 	Intl.h \
 	KeyMap.h \
+	LanguageToolChecker.h \
 	KeySequence.h \
 	Language.h \
 	LaTeXFeatures.h \

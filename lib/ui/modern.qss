@@ -1,0 +1,449 @@
+/*
+ * modern.qss - the "Modern" theme of LyX.
+ *
+ * A calm, paper-like look inspired by distraction-free writing tools:
+ * flat toolbars, soft neutral chrome, rounded controls and a single
+ * accent color.
+ *
+ * Words in double braces, like {{accent}}, are replaced by LyX with the
+ * colors of the light or the dark variant of the theme. To customize
+ * the theme, copy this file to the "ui" folder of your LyX user
+ * directory and edit it there.
+ */
+
+/* ---------- Main window ------------------------------------------------ */
+
+QMainWindow {
+	background: {{window}};
+}
+
+QMainWindow::separator {
+	background: {{border}};
+	width: 1px;
+	height: 1px;
+}
+
+QMainWindow::separator:hover {
+	background: {{accent}};
+}
+
+/* The document area: no frame, the page speaks for itself */
+lyx--frontend--GuiWorkArea,
+lyx--frontend--TabWorkArea {
+	border: none;
+	background: {{base}};
+}
+
+QTabWidget::pane {
+	border: none;
+	border-top: 1px solid {{border}};
+}
+
+/* ---------- Toolbars --------------------------------------------------- */
+
+QToolBar {
+	background: {{surface}};
+	border: none;
+	border-bottom: 1px solid {{border}};
+	padding: 3px 6px;
+	spacing: 2px;
+}
+
+QToolBar::separator {
+	background: {{border}};
+	width: 1px;
+	height: 1px;
+	margin: 5px 6px;
+}
+
+QToolBar::handle {
+	width: 0px;
+	height: 0px;
+}
+
+QToolButton {
+	background: transparent;
+	border: 1px solid transparent;
+	border-radius: 6px;
+	padding: 3px;
+	color: {{text}};
+}
+
+QToolButton:hover {
+	background: {{hover}};
+	border-color: {{hover}};
+}
+
+QToolButton:pressed {
+	background: {{border}};
+}
+
+QToolButton:checked {
+	background: {{accent_soft}};
+	border-color: {{accent_soft}};
+}
+
+QToolButton[popupMode="1"] {
+	padding-right: 12px;
+}
+
+QToolButton::menu-button {
+	border: none;
+	width: 12px;
+}
+
+/* ---------- Menus ------------------------------------------------------ */
+
+QMenuBar {
+	background: {{surface}};
+	color: {{text}};
+	border-bottom: 1px solid {{border}};
+	padding: 2px 4px;
+}
+
+QMenuBar::item {
+	background: transparent;
+	padding: 4px 10px;
+	border-radius: 5px;
+}
+
+QMenuBar::item:selected {
+	background: {{hover}};
+}
+
+QMenuBar::item:pressed {
+	background: {{accent_soft}};
+}
+
+QMenu {
+	background: {{surface}};
+	color: {{text}};
+	border: 1px solid {{border_strong}};
+	padding: 5px;
+}
+
+QMenu::item {
+	padding: 5px 28px 5px 24px;
+	border-radius: 5px;
+	background: transparent;
+}
+
+QMenu::item:selected {
+	background: {{accent_soft}};
+	color: {{text}};
+}
+
+QMenu::item:disabled {
+	color: {{muted}};
+}
+
+QMenu::separator {
+	height: 1px;
+	background: {{border}};
+	margin: 5px 8px;
+}
+
+QMenu::icon {
+	padding-left: 6px;
+}
+
+/* ---------- Document tabs ---------------------------------------------- */
+
+QTabBar {
+	background: {{window}};
+	qproperty-drawBase: 0;
+}
+
+QTabBar::tab {
+	background: transparent;
+	color: {{muted}};
+	border: none;
+	border-bottom: 2px solid transparent;
+	padding: 6px 14px;
+	margin-right: 2px;
+	min-width: 60px;
+}
+
+QTabBar::tab:hover {
+	color: {{text}};
+	background: {{hover}};
+}
+
+QTabBar::tab:selected {
+	color: {{text}};
+	background: {{base}};
+	border-bottom: 2px solid {{accent}};
+}
+
+QTabBar::close-button {
+	subcontrol-position: right;
+}
+
+/* ---------- Side panels (outline, assistant, ...) ---------------------- */
+
+QDockWidget {
+	color: {{muted}};
+	titlebar-close-icon: none;
+}
+
+QDockWidget::title {
+	background: {{surface}};
+	padding: 7px 10px;
+	border-bottom: 1px solid {{border}};
+	text-align: left;
+}
+
+QDockWidget > QWidget {
+	background: {{surface}};
+}
+
+/* ---------- Status bar ------------------------------------------------- */
+
+QStatusBar {
+	background: {{surface}};
+	color: {{muted}};
+	border-top: 1px solid {{border}};
+}
+
+QStatusBar::item {
+	border: none;
+}
+
+QStatusBar QLabel {
+	color: {{muted}};
+	padding: 0 6px;
+}
+
+/* ---------- Scroll bars: thin and quiet -------------------------------- */
+
+QScrollBar:vertical {
+	background: transparent;
+	width: 11px;
+	margin: 2px;
+}
+
+QScrollBar:horizontal {
+	background: transparent;
+	height: 11px;
+	margin: 2px;
+}
+
+QScrollBar::handle:vertical {
+	background: {{scroll_handle}};
+	border-radius: 3px;
+	min-height: 32px;
+	margin: 0 1px;
+}
+
+QScrollBar::handle:horizontal {
+	background: {{scroll_handle}};
+	border-radius: 3px;
+	min-width: 32px;
+	margin: 1px 0;
+}
+
+QScrollBar::handle:hover {
+	background: {{scroll_handle_hover}};
+}
+
+QScrollBar::add-line, QScrollBar::sub-line {
+	width: 0px;
+	height: 0px;
+	border: none;
+	background: none;
+}
+
+QScrollBar::add-page, QScrollBar::sub-page {
+	background: none;
+}
+
+/* ---------- Input fields and buttons ----------------------------------- */
+
+QLineEdit, QPlainTextEdit, QTextEdit, QTextBrowser {
+	background: {{base}};
+	color: {{text}};
+	border: 1px solid {{border_strong}};
+	border-radius: 6px;
+	padding: 3px 6px;
+	selection-background-color: {{selection}};
+	selection-color: {{text}};
+}
+
+QLineEdit:focus, QPlainTextEdit:focus, QTextEdit:focus {
+	border-color: {{accent}};
+}
+
+QLineEdit:disabled, QPlainTextEdit:disabled, QTextEdit:disabled {
+	color: {{muted}};
+	background: {{surface2}};
+}
+
+/* the minibuffer and search fields inside toolbars */
+QToolBar QLineEdit {
+	padding: 2px 6px;
+}
+
+QPushButton {
+	background: {{surface}};
+	color: {{text}};
+	border: 1px solid {{border_strong}};
+	border-radius: 6px;
+	padding: 5px 14px;
+	min-height: 16px;
+}
+
+QPushButton:hover {
+	background: {{hover}};
+}
+
+QPushButton:pressed, QPushButton:checked {
+	background: {{accent_soft}};
+	border-color: {{accent}};
+}
+
+QPushButton:default {
+	background: {{accent}};
+	color: {{accent_text}};
+	border-color: {{accent}};
+}
+
+QPushButton:default:hover {
+	background: {{accent_hover}};
+	border-color: {{accent_hover}};
+}
+
+QPushButton:disabled {
+	color: {{muted}};
+	background: {{surface2}};
+	border-color: {{border}};
+}
+
+QPushButton:flat {
+	border: none;
+	background: transparent;
+}
+
+/* ---------- Lists, trees and tables ------------------------------------ */
+
+QTreeView, QListView, QTableView {
+	background: {{base}};
+	alternate-background-color: {{surface}};
+	border: 1px solid {{border}};
+	border-radius: 6px;
+	selection-background-color: {{accent_soft}};
+	selection-color: {{text}};
+	outline: 0;
+}
+
+QTreeView::item, QListView::item {
+	padding: 3px 2px;
+}
+
+QTreeView::item:hover, QListView::item:hover {
+	background: {{hover}};
+}
+
+QTreeView::item:selected, QListView::item:selected {
+	background: {{accent_soft}};
+	color: {{text}};
+}
+
+QHeaderView::section {
+	background: {{surface}};
+	color: {{muted}};
+	border: none;
+	border-bottom: 1px solid {{border}};
+	padding: 4px 6px;
+}
+
+/* ---------- Misc ------------------------------------------------------- */
+
+QGroupBox {
+	font-weight: bold;
+	color: {{text}};
+}
+
+QSplitter::handle {
+	background: {{border}};
+}
+
+QSplitter::handle:horizontal {
+	width: 1px;
+}
+
+QSplitter::handle:vertical {
+	height: 1px;
+}
+
+QToolTip {
+	background: {{tooltip_bg}};
+	color: {{tooltip_text}};
+	border: none;
+	padding: 5px 8px;
+}
+
+QProgressBar {
+	background: {{surface2}};
+	border: none;
+	border-radius: 3px;
+	text-align: center;
+	color: {{text}};
+}
+
+QProgressBar::chunk {
+	background: {{accent}};
+	border-radius: 3px;
+}
+
+/* ---------- Writing assistant panel ------------------------------------ */
+
+#assistantPanel QTextBrowser {
+	border: none;
+	border-radius: 0;
+	background: {{surface}};
+	padding: 4px;
+}
+
+#assistantPanel QPlainTextEdit {
+	border-radius: 10px;
+	padding: 6px 8px;
+}
+
+#assistantPanel QToolButton {
+	color: {{muted}};
+	padding: 3px 6px;
+}
+
+#assistantPanel QToolButton:hover {
+	color: {{text}};
+}
+
+#assistantPanel QToolButton:checked {
+	color: {{accent}};
+	background: {{accent_soft}};
+	border-color: {{accent}};
+	font-weight: bold;
+}
+
+#assistantPanel #assistantSendButton {
+	background: {{accent}};
+	color: {{accent_text}};
+	border-color: {{accent}};
+	border-radius: 8px;
+	padding: 5px 12px;
+	font-weight: bold;
+}
+
+#assistantPanel #assistantSendButton:hover {
+	background: {{accent_hover}};
+}
+
+#assistantPanel #assistantSendButton:disabled {
+	background: {{surface2}};
+	color: {{muted}};
+	border-color: {{border}};
+}
+
+#assistantPanel QLabel#assistantStatus {
+	color: {{muted}};
+}

@@ -461,6 +461,9 @@ public:
 		return numskips;
 	}
 
+	/// check the paragraph with a checker that needs whole paragraphs
+	void checkWholeParagraph(SpellChecker * speller);
+
 	void markMisspelledWords(Language const * lang,
 				 pos_type const & first, pos_type const & last,
 				 SpellChecker::Result result,
@@ -4974,6 +4977,9 @@ SpellChecker::Result Paragraph::spellCheck(pos_type & from, pos_type & to,
 	if (!d->layout_->spellcheck || !inInset().allowSpellCheck())
 		return result;
 
+	if (speller->checksWholeParagraph())
+		return spellCheckPhrase(from, to, wl, suggestions, do_suggestion);
+
 	locateWord(from, to, WHOLE_WORD, true);
 	if (from == to || from >= size())
 		return result;
@@ -5032,6 +5038,51 @@ SpellChecker::Result Paragraph::spellCheck(pos_type & from, pos_type & to,
 			speller->suggest(wl, suggestions);
 	}
 	return result;
+}
+
+
+SpellChecker::Result Paragraph::spellCheckPhrase(pos_type & from, pos_type & to,
+	WordLangTuple & wl, docstring_list & suggestions,
+	bool do_suggestion) const
+{
+	// Checkers like LanguageTool work on the whole paragraph and may flag
+	// several words at once (e.g. "a apple"). Use the stored result of
+	// the last paragraph check, which also tells the extent of the issue.
+	SpellChecker * speller = theSpellChecker();
+	if (do_suggestion)
+		suggestions.clear();
+	spellCheck();
+	pos_type pos = from;
+	if (pos >= size() && pos > 0)
+		--pos;
+	SpellChecker::Result result = d->speller_state_.getState(pos);
+	if (!SpellChecker::misspelled(result) && pos > 0
+	    && (pos == size() || isWordSeparator(pos))) {
+		// cursor right after the word
+		--pos;
+		result = d->speller_state_.getState(pos);
+	}
+	FontSpan const range = d->speller_state_.getRange(pos);
+	if (SpellChecker::misspelled(result) && range.last >= range.first) {
+		from = range.first;
+		to = range.last + 1;
+	} else {
+		// report the word under the cursor
+		locateWord(from, to, WHOLE_WORD, true);
+	}
+	if (from >= to || from >= size())
+		return SpellChecker::WORD_OK;
+	docstring const word = asString(from, to, AS_STR_INSETS | AS_STR_SKIPDELETE);
+	wl = WordLangTuple(word, d->getSpellLanguage(from));
+	if (SpellChecker::misspelled(result) && do_suggestion)
+		speller->suggest(wl, suggestions);
+	return result;
+}
+
+
+SpellChecker::Result Paragraph::spellResult(pos_type pos) const
+{
+	return d->speller_state_.getState(pos);
 }
 
 
@@ -5102,11 +5153,113 @@ void Paragraph::Private::markMisspelledWords(
 }
 
 
+void Paragraph::Private::checkWholeParagraph(SpellChecker * speller)
+{
+	pos_type const end = owner_->size();
+	speller_state_.setRange(FontSpan(0, end), SpellChecker::WORD_OK);
+	if (end == 0 || !layout_->spellcheck)
+		return;
+	BufferParams const & bparams = inset_owner_->buffer().params();
+	Language const * lang = getSpellLanguage(0);
+	// Build the text as the checker sees it: one character per position.
+	// Everything that should not be checked becomes markup, so that the
+	// offsets reported by the checker map 1:1 onto paragraph positions.
+	vector<SpellChecker::TextSegment> segments;
+	auto append = [&segments](char_type c, bool markup,
+	                          docstring const & interpret, bool mergeable) {
+		if (!segments.empty() && mergeable
+		    && segments.back().markup == markup
+		    && (!markup || segments.back().interpret_as == interpret)) {
+			segments.back().text += c;
+			return;
+		}
+		SpellChecker::TextSegment seg;
+		seg.text = docstring(1, c);
+		seg.markup = markup;
+		seg.interpret_as = interpret;
+		segments.push_back(seg);
+	};
+	bool has_text = false;
+	for (pos_type pos = 0; pos < end; ++pos) {
+		char_type const c = text_[pos];
+		if (owner_->isDeleted(pos)) {
+			append(c, true, docstring(), true);
+			continue;
+		}
+		if (Inset const * inset = owner_->getInset(pos)) {
+			docstring interpret;
+			if (inset->isChar() || dynamic_cast<InsetSpecialChar const *>(inset)) {
+				odocstringstream os;
+				inset->toString(os);
+				interpret = os.str();
+			} else {
+				switch (inset->lyxCode()) {
+				case MATH_CODE:
+				case MATH_HULL_CODE:
+					interpret = from_ascii("X");
+					break;
+				case CITE_CODE:
+					interpret = from_ascii("[1]");
+					break;
+				case REF_CODE:
+				case COUNTER_CODE:
+					interpret = from_ascii("1");
+					break;
+				case HYPERLINK_CODE:
+					interpret = from_ascii("link");
+					break;
+				default:
+					break;
+				}
+			}
+			append(0xFFFC, true, interpret, false);
+			continue;
+		}
+		Font const & f = owner_->getFontSettings(bparams, pos);
+		if (f.fontInfo().nospellcheck() == FONT_ON
+		    || (getSpellLanguage(pos) != lang && !owner_->isWordSeparator(pos))) {
+			// Do not check, but keep the word: interpret as a neutral noun
+			bool const start = segments.empty() || !segments.back().markup
+				|| segments.back().interpret_as != from_ascii("X");
+			append(c, true, from_ascii("X"), !start);
+			continue;
+		}
+		has_text = true;
+		append(c, false, docstring(), true);
+	}
+	if (!has_text)
+		return;
+	SpellChecker::Result const result = speller->checkSegments(segments, lang);
+	if (!SpellChecker::misspelled(result))
+		return;
+	int const nerrors = speller->numMisspelledWords();
+	for (int index = 0; index < nerrors; ++index) {
+		int wstart = 0;
+		int wlen = 0;
+		speller->misspelledWord(index, wstart, wlen);
+		if (wlen <= 0 || wstart < 0 || wstart >= end)
+			continue;
+		pos_type const wend = min(pos_type(wstart + wlen), end);
+		SpellChecker::Result res = speller->misspelledWordResult(index);
+		docstring const word = owner_->asString(wstart, wend, AS_STR_INSETS | AS_STR_SKIPDELETE);
+		if (bparams.spellignored(WordLangTuple(word, lang)))
+			res = SpellChecker::DOCUMENT_LEARNED_WORD;
+		setMisspelled(wstart, wend, res);
+	}
+}
+
+
 void Paragraph::spellCheck() const
 {
 	SpellChecker * speller = theSpellChecker();
 	if (!speller || empty() ||!needsSpellCheck())
 		return;
+	if (speller->checksWholeParagraph()) {
+		// grammar checkers need the context of the change
+		d->checkWholeParagraph(speller);
+		d->readySpellCheck();
+		return;
+	}
 	pos_type start;
 	pos_type endpos;
 	d->rangeOfSpellCheck(start, endpos);

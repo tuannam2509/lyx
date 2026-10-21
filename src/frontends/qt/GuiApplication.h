@@ -91,6 +91,10 @@ public:
 	void hideDialogs(std::string const & name, Inset * inset) const;
 	///
 	void resetGui();
+	/// apply the theme selected in the preferences (lyxrc.ui_theme)
+	void applyUiTheme();
+	/// is the current theme dark?
+	bool themeIsDark();
 	/// Return true if current position is RTL of if no document is open and interface if RTL
 	bool rtlContext() const;
 

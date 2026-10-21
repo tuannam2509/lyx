@@ -49,6 +49,7 @@
 #include "Lexer.h"
 #include "LyX.h"
 #include "LyXAction.h"
+#include "LanguageToolChecker.h"
 #include "LyXRC.h"
 #include "Paragraph.h"
 #include "Server.h"
@@ -91,7 +92,9 @@
 #include <QDateTime>
 #include <QEvent>
 #include <QFileOpenEvent>
+#include <QFile>
 #include <QFileInfo>
+#include <QMap>
 #include <QFontDatabase>
 #include <QHash>
 #include <QIcon>
@@ -114,6 +117,9 @@
 #include <QSocketNotifier>
 #include <QSortFilterProxyModel>
 #include <QStandardItemModel>
+#include <QStyle>
+#include <QStyleFactory>
+#include <QStyleHints>
 #include <QSvgRenderer>
 #include <QTimer>
 #include <QTranslator>
@@ -1103,6 +1109,12 @@ struct GuiApplication::Private
 	* \sa Qt::WA_DeleteOnClose attribute.
 	*/
 	QHash<int, GuiView *> views_;
+	/// the theme that was applied last
+	string applied_theme_;
+	/// look of the system, restored by the classic theme
+	QString system_style_;
+	QPalette system_palette_;
+	QFont system_font_;
 
 	/// Only used on mac.
 	QMenuBar * global_menubar_;
@@ -1236,6 +1248,186 @@ GuiApplication::GuiApplication(int & argc, char ** argv)
 
 	// make sure tooltips are formatted
 	installEventFilter(new ToolTipFormatter(this));
+
+	// LanguageTool answers asynchronously: redraw when results arrive
+	LanguageToolChecker::setRedrawHook([this]() {
+		for (GuiView * gv : d->views_)
+			gv->scheduleRedrawWorkAreas();
+	});
+
+	// remember the look of the system, for the "classic" theme
+	d->system_style_ = style() ? style()->objectName() : QString();
+	d->system_palette_ = palette();
+	d->system_font_ = font();
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+	connect(styleHints(), &QStyleHints::colorSchemeChanged, this, [this]() {
+		if (lyxrc.ui_theme == "modern")
+			applyUiTheme();
+	});
+#endif
+}
+
+
+namespace {
+
+/// colors of the modern theme
+QMap<QString, QString> modernColors(bool dark)
+{
+	QMap<QString, QString> c;
+	if (dark) {
+		c["window"] = "#222326";
+		c["surface"] = "#2a2b2f";
+		c["surface2"] = "#313237";
+		c["base"] = "#1e1f22";
+		c["border"] = "#38393f";
+		c["border_strong"] = "#4a4b52";
+		c["text"] = "#e7e3da";
+		c["muted"] = "#9c978d";
+		c["accent"] = "#7aa7dd";
+		c["accent_hover"] = "#8fb6e6";
+		c["accent_soft"] = "#2f4258";
+		c["accent_text"] = "#15171a";
+		c["hover"] = "#35363b";
+		c["selection"] = "#37506f";
+		c["scroll_handle"] = "#4a4b51";
+		c["scroll_handle_hover"] = "#5f6068";
+		c["tooltip_bg"] = "#e7e3da";
+		c["tooltip_text"] = "#1e1f22";
+		c["link"] = "#8fb6e6";
+	} else {
+		c["window"] = "#f3f1ec";
+		c["surface"] = "#f9f8f5";
+		c["surface2"] = "#efece6";
+		c["base"] = "#fefdfb";
+		c["border"] = "#e2ded6";
+		c["border_strong"] = "#d0cabf";
+		c["text"] = "#2d2a26";
+		c["muted"] = "#7b756b";
+		c["accent"] = "#3a74b0";
+		c["accent_hover"] = "#2f659d";
+		c["accent_soft"] = "#dce7f3";
+		c["accent_text"] = "#ffffff";
+		c["hover"] = "#ebe7e0";
+		c["selection"] = "#d3e2f6";
+		c["scroll_handle"] = "#d0c9bd";
+		c["scroll_handle_hover"] = "#b6ad9f";
+		c["tooltip_bg"] = "#2d2a26";
+		c["tooltip_text"] = "#f5f2ec";
+		c["link"] = "#2f659d";
+	}
+	return c;
+}
+
+
+QPalette modernPalette(QMap<QString, QString> const & c)
+{
+	QPalette p;
+	auto col = [&c](char const * name) { return QColor(c.value(name)); };
+	p.setColor(QPalette::Window, col("window"));
+	p.setColor(QPalette::WindowText, col("text"));
+	p.setColor(QPalette::Base, col("base"));
+	p.setColor(QPalette::AlternateBase, col("surface"));
+	p.setColor(QPalette::Text, col("text"));
+	p.setColor(QPalette::Button, col("surface"));
+	p.setColor(QPalette::ButtonText, col("text"));
+	p.setColor(QPalette::BrightText, col("accent_text"));
+	p.setColor(QPalette::Highlight, col("accent"));
+	p.setColor(QPalette::HighlightedText, col("accent_text"));
+	p.setColor(QPalette::ToolTipBase, col("tooltip_bg"));
+	p.setColor(QPalette::ToolTipText, col("tooltip_text"));
+	p.setColor(QPalette::Link, col("link"));
+	p.setColor(QPalette::LinkVisited, col("link"));
+	p.setColor(QPalette::Light, col("surface"));
+	p.setColor(QPalette::Midlight, col("border"));
+	p.setColor(QPalette::Mid, col("border_strong"));
+	p.setColor(QPalette::Dark, col("muted"));
+	p.setColor(QPalette::Shadow, col("border_strong"));
+#if QT_VERSION >= QT_VERSION_CHECK(5, 12, 0)
+	p.setColor(QPalette::PlaceholderText, col("muted"));
+#endif
+	for (auto role : { QPalette::WindowText, QPalette::Text, QPalette::ButtonText })
+		p.setColor(QPalette::Disabled, role, col("muted"));
+	p.setColor(QPalette::Disabled, QPalette::Base, col("surface2"));
+	return p;
+}
+
+} // namespace
+
+
+bool GuiApplication::themeIsDark()
+{
+	return colorCache().isDarkMode();
+}
+
+
+void GuiApplication::applyUiTheme()
+{
+	string const theme = lyxrc.ui_theme;
+	if (theme == d->applied_theme_ && theme != "modern")
+		return;
+
+	if (theme == "classic") {
+		if (d->applied_theme_.empty()) {
+			// nothing was changed so far
+			d->applied_theme_ = theme;
+			return;
+		}
+		setStyleSheet(QString());
+		if (!d->system_style_.isEmpty())
+			setStyle(QStyleFactory::create(d->system_style_));
+		setPalette(d->system_palette_);
+		setFont(d->system_font_);
+	} else {
+		bool dark = theme == "modern-dark";
+		if (theme != "modern-light" && theme != "modern-dark") {
+			// follow the system
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+			Qt::ColorScheme const scheme = styleHints()->colorScheme();
+			if (scheme != Qt::ColorScheme::Unknown)
+				dark = scheme == Qt::ColorScheme::Dark;
+			else
+#endif
+			dark = d->system_palette_.color(QPalette::Window).lightness()
+				< d->system_palette_.color(QPalette::WindowText).lightness();
+		}
+		QMap<QString, QString> const colors = modernColors(dark);
+		if (QStyle * fusion = QStyleFactory::create("Fusion"))
+			setStyle(fusion);
+		setPalette(modernPalette(colors));
+
+		// a nicer interface font, if installed
+		QFont f = d->system_font_;
+#if QT_VERSION >= 0x060000
+		QStringList const families = QFontDatabase::families();
+#else
+		QStringList const families = QFontDatabase().families();
+#endif
+		for (char const * family : { "Inter", "Inter Variable", "Segoe UI Variable Text",
+		                             "Segoe UI", "SF Pro Text" }) {
+			if (families.contains(family)) {
+				f.setFamily(family);
+				break;
+			}
+		}
+		setFont(f);
+
+		QString qss;
+		FileName const file = libFileSearch("ui", "modern.qss");
+		QFile qf(toqstr(file.absFileName()));
+		if (!file.empty() && qf.open(QIODevice::ReadOnly | QIODevice::Text))
+			qss = QString::fromUtf8(qf.readAll());
+		else
+			LYXERR0("Theme stylesheet ui/modern.qss not found.");
+		for (auto it = colors.constBegin(); it != colors.constEnd(); ++it)
+			qss.replace("{{" + it.key() + "}}", it.value());
+		setStyleSheet(qss);
+	}
+	d->applied_theme_ = theme;
+
+	// colors of the work area depend on dark mode
+	colorCache().setPalette(palette());
+	for (GuiView * gv : d->views_)
+		gv->scheduleRedrawWorkAreas();
 }
 
 
@@ -2554,6 +2746,7 @@ void GuiApplication::resetGui()
 {
 	// Set the language defined by the user.
 	setGuiLanguage();
+	applyUiTheme();
 
 	// Read menus
 	if (!readUIFile(toqstr(lyxrc.ui_file)))
@@ -2813,6 +3006,7 @@ void GuiApplication::setGuiLanguage()
 void GuiApplication::execBatchCommands()
 {
 	setGuiLanguage();
+	applyUiTheme();
 
 	// Read menus
 	if (!readUIFile(toqstr(lyxrc.ui_file)))
