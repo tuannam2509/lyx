@@ -62,6 +62,22 @@ target_link_libraries(frontend_qt
 	${QT_QTCORE_LIBRARY}
 	${QT_QTGUI_LIBRARY})
 
+# Qt private headers (used on Windows for the clipboard). Since Qt 6.9
+# they have to be requested explicitly.
+if(LYX_USE_QT MATCHES "QT6")
+	if(NOT TARGET Qt6::GuiPrivate)
+		find_package(Qt6GuiPrivate CONFIG QUIET)
+	endif()
+	if(TARGET Qt6::GuiPrivate)
+		# only the headers: linking the target would pull in its
+		# platform dependencies (e.g. XKB on Linux)
+		get_target_property(_gui_private_inc Qt6::GuiPrivate INTERFACE_INCLUDE_DIRECTORIES)
+		if(_gui_private_inc)
+			target_include_directories(frontend_qt PRIVATE ${_gui_private_inc})
+		endif()
+	endif()
+endif()
+
 lyx_add_gcc_pch(frontend_qt)
 
 if(WIN32)
