@@ -5365,6 +5365,13 @@ int Buffer::spellCheck(DocIterator & from, DocIterator & to,
 	WordLangTuple wl;
 	suggestions.clear();
 	word_lang = WordLangTuple();
+	// Checkers with asynchronous results (e.g. LanguageTool) have to wait
+	// for their results here.
+	struct BlockingGuard {
+		BlockingGuard() : sc(theSpellChecker()) { if (sc) sc->setBlocking(true); }
+		~BlockingGuard() { if (sc) sc->setBlocking(false); }
+		SpellChecker * sc;
+	} const blocking_guard;
 	bool const to_end = to.empty();
 	DocIterator const end = to_end ? doc_iterator_end(this) : to;
 	// OK, we start from here.

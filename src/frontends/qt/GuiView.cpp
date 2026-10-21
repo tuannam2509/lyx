@@ -2584,6 +2584,7 @@ bool GuiView::getStatus(FuncRequest const & cmd, FuncStatus & flag)
 				|| name == "prefs"
 				|| name == "texinfo"
 				|| name == "progress"
+				|| name == "assistant"
 				|| name == "compare";
 		else if (name == "character" || name == "symbols"
 			|| name == "mathdelimiter" || name == "mathmatrix") {
@@ -5207,7 +5208,8 @@ char const * const dialognames[] = {
 "log", "lyxfiles", "mathdelimiter", "mathmatrix", "mathspace", "nomenclature",
 "nomencl_print", "note", "paragraph", "phantom", "prefs", "ref",
 "sendto", "space", "spellchecker", "symbols", "tabular", "tabularcreate",
-"thesaurus", "texinfo", "toc", "view-source", "vspace", "wrap", "progress"};
+"thesaurus", "texinfo", "toc", "view-source", "vspace", "wrap", "progress",
+"assistant"};
 
 char const * const * const end_dialognames =
 	dialognames + (sizeof(dialognames) / sizeof(char *));

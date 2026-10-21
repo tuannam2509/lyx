@@ -103,6 +103,7 @@ ToolbarSet
 		DynamicMenu "dynamic-custom-insets" "Custom insets"
 		Separator
 		Item "Toggle outline" "dialog-toggle toc"
+		Item "Toggle writing assistant" "dialog-toggle assistant"
 		PopupMenu "toolbar-toggle_math" "Show math toolbar"
 		PopupMenu "toolbar-toggle_table" "Show table toolbar"
 		PopupMenu "toolbar-toggle_review" "Show review toolbar"

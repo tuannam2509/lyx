@@ -609,6 +609,7 @@ dist_images_DATA1X = \
 	images/dialog-show_mathmatrix.svgz \
 	images/dialog-show_print.svgz \
 	images/dialog-show_spellchecker.svgz \
+	images/dialog-show_assistant.svgz \
 	images/dialog-show_toc.svgz \
 	images/dialog-show_vclog.svgz \
 	images/down.svgz \
@@ -2887,6 +2888,7 @@ dist_noinst_DATA += tex/subscript.sty
 uidir = $(pkgdatadir)/ui
 dist_ui_DATA = \
 	ui/default.ui \
+	ui/modern.qss \
 	ui/stdcontext.inc \
 	ui/stdmenus.inc \
 	ui/stdtoolbars.inc

@@ -47,20 +47,38 @@ endif()
 set_target_properties(frontend_qt PROPERTIES FOLDER "applications/LyX" QT_NO_UNICODE_DEFINES TRUE)
 
 if(Qt6Core_FOUND)
-       qt_use_modules(frontend_qt Core Gui Widgets Concurrent Svg SvgWidgets)
+       qt_use_modules(frontend_qt Core Gui Widgets Concurrent Network Svg SvgWidgets)
 elseif(Qt5Core_FOUND AND APPLE)
-       qt_use_modules(frontend_qt Core Gui Widgets Concurrent Svg MacExtras)
+       qt_use_modules(frontend_qt Core Gui Widgets Concurrent Network Svg MacExtras)
 else()
        if (Qt5WinExtras_FOUND)
-           qt_use_modules(frontend_qt Core Gui Widgets Concurrent Svg WinExtras)
+           qt_use_modules(frontend_qt Core Gui Widgets Concurrent Network Svg WinExtras)
        else()
-           qt_use_modules(frontend_qt Core Gui Widgets Concurrent Svg)
+           qt_use_modules(frontend_qt Core Gui Widgets Concurrent Network Svg)
        endif()
 endif()
 target_link_libraries(frontend_qt
 	frontends
 	${QT_QTCORE_LIBRARY}
 	${QT_QTGUI_LIBRARY})
+
+# Qt private headers (used on Windows for the clipboard). Since Qt 6.9
+# they are separate CMake packages that have to be requested explicitly.
+if(LYX_USE_QT MATCHES "QT6")
+	foreach(_priv CorePrivate GuiPrivate)
+		if(NOT TARGET Qt6::${_priv})
+			find_package(Qt6${_priv} CONFIG QUIET)
+		endif()
+		if(TARGET Qt6::${_priv})
+			# only the headers: linking the target would pull in its
+			# platform dependencies (e.g. XKB on Linux)
+			get_target_property(_priv_inc Qt6::${_priv} INTERFACE_INCLUDE_DIRECTORIES)
+			if(_priv_inc)
+				target_include_directories(frontend_qt PRIVATE ${_priv_inc})
+			endif()
+		endif()
+	endforeach()
+endif()
 
 lyx_add_gcc_pch(frontend_qt)
 

@@ -121,6 +121,7 @@ Format 5
 \bind "C-F6"			"buffer-next"
 \bind "C-S-F6"			"buffer-previous"
 \bind "F7"			"dialog-show spellchecker"
+\bind "F8"			"dialog-toggle assistant"
 \bind "S-F7"			"thesaurus-entry"
 
 \bind "M-x"			"command-execute"

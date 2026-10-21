@@ -44,8 +44,11 @@
 #include "ui_PrefIdentityUi.h"
 #include "ui_ShortcutUi.h"
 
+#include <functional>
 #include <string>
 #include <vector>
+
+class QNetworkAccessManager;
 
 
 namespace lyx {
@@ -320,6 +323,43 @@ public:
 
 private Q_SLOTS:
 	void on_spellcheckerCB_currentIndexChanged(int);
+};
+
+
+/// Settings of the LanguageTool server, the AI assistant and web search
+class PrefWritingAssistant : public PrefModule
+{
+	Q_OBJECT
+public:
+	PrefWritingAssistant(GuiPreferences * form);
+
+	void applyRC(LyXRC & rc) const override;
+	void updateRC(LyXRC const & rc) override;
+
+private Q_SLOTS:
+	void testLanguageTool();
+	void fetchModels();
+	void testSearxng();
+	void browseTex();
+	void updateTexStatus();
+
+private:
+	/// GET url and report the outcome in label
+	void probe(QString const & url, QLabel * label,
+	           std::function<QString(QByteArray const &)> const & describe);
+
+	QLineEdit * ltUrlED;
+	QCheckBox * ltPickyCB;
+	QLabel * ltStatusLA;
+	QLineEdit * aiUrlED;
+	QLineEdit * aiKeyED;
+	QComboBox * aiModelCO;
+	QLabel * aiStatusLA;
+	QLineEdit * searxUrlED;
+	QLabel * searxStatusLA;
+	QLineEdit * texPathED;
+	QLabel * texStatusLA;
+	QNetworkAccessManager * nam_;
 };
 
 

@@ -40,7 +40,9 @@ if (APPLE)
 elseif(WIN32)
     set(CPACK_GENERATOR ZIP)
     set(CPACK_BINARY_ZIP 1)
-    if(MINGW)
+    # The runtime libraries are collected from a Fedora cross-compiling
+    # setup. Native MinGW builds (e.g. MSYS2) bundle them with windeployqt.
+    if(MINGW AND LYX_XMINGW)
         set(runtime)
         if(LYX_XMINGW)
             execute_process(COMMAND ${CMAKE_CXX_COMPILER} -print-libgcc-file-name OUTPUT_VARIABLE GCC_LIBGCC OUTPUT_STRIP_TRAILING_WHITESPACE)

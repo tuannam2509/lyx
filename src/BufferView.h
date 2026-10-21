@@ -371,6 +371,10 @@ public:
 	docstring contentsOfPlaintextFile(support::FileName const & f);
 	// Insert plain text file (if filename is empty, prompt for one)
 	void insertPlaintextFile(support::FileName const & f, bool asParagraph);
+	/// insert (or replace the selection with) plain text, with undo.
+	/// Line breaks start new paragraphs if \p asParagraph is false,
+	/// otherwise only empty lines do.
+	void insertPlaintextString(docstring const & str, bool asParagraph);
 	///
 	void insertLyXFile(support::FileName const & f, bool const ignorelang = false);
 	/// save temporary bookmark for jump back navigation

@@ -60,6 +60,7 @@ SOURCEFILES = \
 	GuiAbout.cpp \
 	GuiAlert.cpp \
 	GuiApplication.cpp \
+	GuiAssistant.cpp \
 	GuiBibitem.cpp \
 	GuiBibtex.cpp \
 	GuiBox.cpp \
@@ -181,6 +182,7 @@ MOCHEADER = \
 	FloatPlacement.h \
 	GuiAbout.h \
 	GuiApplication.h \
+	GuiAssistant.h \
 	GuiBibitem.h \
 	GuiBibtex.h \
 	GuiBox.h \

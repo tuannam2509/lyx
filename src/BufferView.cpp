@@ -3722,8 +3722,12 @@ docstring BufferView::contentsOfPlaintextFile(FileName const & fname)
 
 void BufferView::insertPlaintextFile(FileName const & f, bool asParagraph)
 {
-	docstring const tmpstr = contentsOfPlaintextFile(f);
+	insertPlaintextString(contentsOfPlaintextFile(f), asParagraph);
+}
 
+
+void BufferView::insertPlaintextString(docstring const & tmpstr, bool asParagraph)
+{
 	if (tmpstr.empty())
 		return;
 

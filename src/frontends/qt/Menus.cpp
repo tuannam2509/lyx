@@ -835,8 +835,31 @@ void MenuDefinition::expandSpellingSuggestions(BufferView const * bv)
 	pos_type to = from;
 	SpellChecker::Result res = par.spellCheck(from, to, wl, suggestions, true, true);
 	switch (res) {
+	case SpellChecker::GRAMMAR_ERROR:
 	case SpellChecker::UNKNOWN_WORD:
+		if (lyxrc.spellcheck_continuously && !cur.selection()
+		    && theSpellChecker() && theSpellChecker()->checksWholeParagraph()
+		    && from < to) {
+			// Grammar issues can span several words: select the
+			// flagged text, so that the suggestions replace all of it.
+			Cursor & mcur = const_cast<BufferView *>(bv)->cursor();
+			mcur.pos() = from;
+			mcur.resetAnchor();
+			mcur.pos() = to;
+			mcur.setSelection();
+		}
 		if (lyxrc.spellcheck_continuously) {
+			// Explanation of the problem (e.g. from LanguageTool)
+			docstring const expl = theSpellChecker()
+				? theSpellChecker()->explanation(wl) : docstring();
+			if (!expl.empty()) {
+				QString label = toqstr(expl);
+				if (label.length() > 90)
+					label = label.left(87) + "...";
+				MenuItem info(MenuItem::Info, label.replace('&', "&&"));
+				add(info);
+				add(MenuItem(MenuItem::Separator));
+			}
 			LYXERR(Debug::GUI, "Misspelled Word! Suggested Words = ");
 			docstring const & selection = cur.selectionAsString(false);
 			if (!cur.selection() || selection == wl.word()) {
@@ -867,6 +890,13 @@ void MenuDefinition::expandSpellingSuggestions(BufferView const * bv)
 				if (i > 0)
 					add(MenuItem(MenuItem::Separator));
 				docstring const arg = wl.word() + " " + from_ascii(wl.lang()->lang());
+				if (res == SpellChecker::GRAMMAR_ERROR) {
+					add(MenuItem(MenuItem::Command, qt_("Ignore this occurrence|g"),
+							FuncRequest(LFUN_FONT_NO_SPELLCHECK, arg)));
+					add(MenuItem(MenuItem::Command, qt_("Ignore all in this document|d"),
+							FuncRequest(LFUN_SPELLING_ADD_LOCAL, arg)));
+					break;
+				}
 				add(MenuItem(MenuItem::Command, qt_("Add to personal dictionary|n"),
 						FuncRequest(LFUN_SPELLING_ADD, arg)));
 				add(MenuItem(MenuItem::Command, qt_("Ignore this occurrence|g"),
