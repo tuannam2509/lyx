@@ -38,7 +38,15 @@ jobs:
 
       - name: Configure
         run: |
+          # LyX's find modules expect the names of other Windows builds of
+          # these libraries, so tell them where the MSYS2 ones are.
+          iconv_dll=$(ls "$MINGW_PREFIX"/bin/libiconv*.dll | head -1)
+          hunspell_lib=$(ls "$MINGW_PREFIX"/lib/libhunspell*.dll.a | head -1)
+          echo "iconv: $iconv_dll, hunspell: $hunspell_lib"
           cmake -S . -B build -G Ninja \
+            -DICONV_DLL="$(cygpath -m "$iconv_dll")" \
+            -DHUNSPELL_LIBRARY="$(cygpath -m "$hunspell_lib")" \
+            -DHUNSPELL_INCLUDE_DIR="$(cygpath -m "$MINGW_PREFIX/include/hunspell")" \
             -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
             -DGNUWIN32_DIR="$(cygpath -m "$MINGW_PREFIX")" \
             -DCMAKE_BUILD_TYPE=Release \
