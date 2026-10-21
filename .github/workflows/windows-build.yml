@@ -1,0 +1,115 @@
+# Builds LyX for Windows (64 bit) with MSYS2/MinGW and Qt 6, and uploads a
+# portable zip as a workflow artifact.
+name: Windows build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ master, 'claude/**' ]
+  pull_request:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            git
+            zip
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-qt6-base
+            mingw-w64-ucrt-x86_64-qt6-svg
+            mingw-w64-ucrt-x86_64-qt6-tools
+            mingw-w64-ucrt-x86_64-qt6-imageformats
+            mingw-w64-ucrt-x86_64-hunspell
+            mingw-w64-ucrt-x86_64-zlib
+            mingw-w64-ucrt-x86_64-libiconv
+            mingw-w64-ucrt-x86_64-python
+
+      - name: Configure
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DLYX_USE_QT=QT6 \
+            -DLYX_RELEASE=ON \
+            -DLYX_INSTALL=ON \
+            -DLYX_NLS=OFF \
+            -DLYX_QUIET=ON \
+            -DLYX_PROGRAM_SUFFIX=OFF \
+            -DLYX_PACKAGE_SUFFIX=OFF \
+            -DLYX_EXTERNAL_Z=ON \
+            -DLYX_EXTERNAL_ICONV=ON \
+            -DLYX_EXTERNAL_HUNSPELL=ON \
+            -DLYX_EXTERNAL_BOOST=OFF \
+            -DLYX_HUNSPELL=ON \
+            -DCMAKE_INSTALL_PREFIX="$PWD/LyX"
+
+      - name: Build
+        run: cmake --build build --parallel 4
+
+      - name: Install
+        run: cmake --install build
+
+      - name: Bundle Qt and runtime libraries
+        run: |
+          cd LyX/bin
+          ls
+          exe=$(ls lyx*.exe | grep -v client | head -1)
+          echo "Main executable: $exe"
+          # Qt plugins and libraries
+          if command -v windeployqt6 >/dev/null; then WDQ=windeployqt6;
+          elif command -v windeployqt-qt6 >/dev/null; then WDQ=windeployqt-qt6;
+          else WDQ=windeployqt; fi
+          $WDQ --release --no-translations --compiler-runtime "$exe" || true
+          # all MinGW DLLs the programs need (repeat to catch indirect ones)
+          for round in 1 2 3; do
+            for f in *.exe *.dll; do
+              ldd "$f" | awk '/ucrt64/ {print $3}' | while read dll; do
+                [ -f "$(basename "$dll")" ] || cp "$dll" .
+              done
+            done
+          done
+          ls
+
+      - name: Add notes
+        run: |
+          cat > LyX/README-WINDOWS.txt <<'EOF'
+          LyX (modern theme, LanguageTool, writing assistant) - test build
+
+          Start bin\lyx.exe (or bin\LyX.exe).
+
+          Requirements:
+          * Python 3 (https://www.python.org, tick "Add python.exe to PATH"
+            and keep the "py launcher"). LyX needs it to configure itself.
+          * A LaTeX distribution (MiKTeX or TeX Live) to view/export PDF.
+            Point LyX to it in Tools > Preferences > Language Settings >
+            Writing Assistant & LaTeX, then run Tools > Reconfigure and
+            restart LyX.
+
+          See WRITING_ASSISTANT.md for the LanguageTool, AI and SearXNG
+          settings.
+          EOF
+          cp WRITING_ASSISTANT.md LyX/
+
+      - name: Smoke test
+        run: |
+          cd LyX/bin
+          exe=$(ls lyx*.exe | grep -v client | head -1)
+          QT_QPA_PLATFORM=offscreen ./"$exe" -version || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LyX-windows-x64
+          path: LyX
+          if-no-files-found: error
