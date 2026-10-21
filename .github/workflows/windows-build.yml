@@ -74,7 +74,7 @@ jobs:
         run: |
           cd LyX/bin
           ls
-          exe=$(ls lyx*.exe | grep -v client | head -1)
+          exe=$(ls | grep -i '^lyx.*\.exe$' | grep -vi client | head -1)
           echo "Main executable: $exe"
           # Qt plugins and libraries
           if command -v windeployqt6 >/dev/null; then WDQ=windeployqt6;
@@ -96,7 +96,7 @@ jobs:
           cat > LyX/README-WINDOWS.txt <<'EOF'
           LyX (modern theme, LanguageTool, writing assistant) - test build
 
-          Start bin\lyx.exe (or bin\LyX.exe).
+          Start bin\LyX.exe.
 
           Requirements:
           * Python 3 (https://www.python.org, tick "Add python.exe to PATH"
@@ -114,7 +114,7 @@ jobs:
       - name: Smoke test
         run: |
           cd LyX/bin
-          exe=$(ls lyx*.exe | grep -v client | head -1)
+          exe=$(ls | grep -i '^lyx.*\.exe$' | grep -vi client | head -1)
           QT_QPA_PLATFORM=offscreen ./"$exe" -version || true
 
       - uses: actions/upload-artifact@v4
