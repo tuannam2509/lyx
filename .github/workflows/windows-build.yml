@@ -40,6 +40,7 @@ jobs:
         run: |
           cmake -S . -B build -G Ninja \
             -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+            -DGNUWIN32_DIR="$(cygpath -m "$MINGW_PREFIX")" \
             -DCMAKE_BUILD_TYPE=Release \
             -DLYX_USE_QT=QT6 \
             -DLYX_RELEASE=ON \
@@ -53,13 +54,13 @@ jobs:
             -DLYX_EXTERNAL_HUNSPELL=ON \
             -DLYX_EXTERNAL_BOOST=OFF \
             -DLYX_HUNSPELL=ON \
-            -DCMAKE_INSTALL_PREFIX="$PWD/LyX"
+            -DCMAKE_INSTALL_PREFIX="$(cygpath -m "$PWD/LyX")"
 
       - name: Build
         run: cmake --build build --parallel 4
 
       - name: Install
-        run: cmake --install build
+        run: cmake --install build --prefix "$PWD/LyX"
 
       - name: Bundle Qt and runtime libraries
         run: |
