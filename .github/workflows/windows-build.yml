@@ -6,7 +6,6 @@ on:
   workflow_dispatch:
   push:
     branches: [ master, 'claude/**' ]
-  pull_request:
 
 jobs:
   windows:
@@ -40,6 +39,7 @@ jobs:
       - name: Configure
         run: |
           cmake -S . -B build -G Ninja \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
             -DCMAKE_BUILD_TYPE=Release \
             -DLYX_USE_QT=QT6 \
             -DLYX_RELEASE=ON \
